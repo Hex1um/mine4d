@@ -10,7 +10,8 @@ const MAX_LOG = 26;
 function init() {
   ['diff-bar', 'mines-left', 'clock', 'opened', 'coords', 'btn-new', 'btn-auto', 'btn-hint',
    'btn-help', 'board', 'banner', 'thumb0', 'thumb1', 'thumb2', 'cap-w0', 'cap-w1', 'cap-w2',
-   'scanner', 'log', 'w-slider', 'w-val', 'z-tabs', 'hintline', 'boot', 'boot-text', 'help'].forEach((id) => el[id] = $(id));
+   'scanner', 'log', 'w-slider', 'w-val', 'z-tabs', 'hintline', 'boot', 'boot-text', 'help',
+   'view-bar', 'btn-cam'].forEach((id) => el[id] = $(id));
 }
 
 function buildDiffBar(current, onPick) {
@@ -31,6 +32,21 @@ function buildModeBar(current, onPick) {
     `<button class="mode ${m.id === current ? 'on' : ''}" data-mode="${m.id}" title="${m.desc}">${m.name}</button>`
   ).join('');
   bar.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => onPick(b.dataset.mode)));
+}
+
+const VIEW_LIST = [
+  { id: '2d', name: '平面', en: 'PLANE', hint: '(x,y) 切片' },
+  { id: '3d', name: '立体', en: 'VOLUME', hint: 'x·y·z 立方' },
+  { id: '4d', name: '四维', en: 'HYPER', hint: 'W 相位展开' }
+];
+
+function buildViewBar(current, onPick) {
+  if (!el['view-bar']) return;
+  el['view-bar'].innerHTML = VIEW_LIST.map((v) =>
+    `<button class="view ${v.id === current ? 'on' : ''}" data-view="${v.id}" title="${v.name} · ${v.hint}">
+      <b>${v.name}</b><i>${v.en}</i></button>`
+  ).join('');
+  el['view-bar'].querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => onPick(b.dataset.view)));
 }
 
 function buildZTabs(board, current, onPick) {
@@ -149,6 +165,6 @@ function boot(done) {
   })();
 }
 
-M.UI = { init, el, buildDiffBar, buildModeBar, buildZTabs, setStats, log, clearLog, setHintLine, banner, tickBanner, help, boot };
+M.UI = { init, el, buildDiffBar, buildModeBar, buildViewBar, buildZTabs, setStats, log, clearLog, setHintLine, banner, tickBanner, help, boot };
 
 })(window.M4);

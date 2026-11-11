@@ -136,6 +136,31 @@ body::before {
 .mode:hover { color: var(--cyan-2); }
 .mode.on { color: #04121a; background: var(--cyan); }
 
+.views {
+  position: absolute; top: 10px; left: 12px; z-index: 4;
+  display: flex; gap: 3px;
+  padding: 3px;
+  background: rgba(4, 11, 16, 0.72);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(4px);
+}
+.view {
+  display: grid; gap: 0;
+  font-family: var(--font-mono); text-align: left;
+  color: var(--ink-dim);
+  background: rgba(10, 24, 32, 0.55);
+  border: 1px solid var(--line);
+  padding: 4px 9px; cursor: pointer;
+  transition: color 130ms, border-color 130ms, background 130ms;
+}
+.view b { font-size: 10px; color: var(--ink-soft); font-weight: 700; letter-spacing: 0.08em; }
+.view i { font-style: normal; font-size: 7px; letter-spacing: 0.14em; color: var(--ink-dim); }
+.view:hover { border-color: var(--line-2); }
+.view:hover b { color: var(--cyan-2); }
+.view.on { border-color: var(--cyan); background: rgba(34, 211, 238, 0.14); }
+.view.on b { color: #eafcff; }
+.view.on i { color: var(--cyan); }
+
 .stats { display: flex; gap: 14px; flex: none; }
 .stat { display: grid; gap: 1px; }
 .stat label { font-family: var(--font-mono); font-size: 8px; letter-spacing: 0.16em; color: var(--ink-dim); }

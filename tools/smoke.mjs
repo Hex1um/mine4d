@@ -116,6 +116,66 @@ report.view = await ev(`({ w: __m4.view.w, z: __m4.view.z,
   zOn: document.querySelector('.ztab.on') ? document.querySelector('.ztab.on').textContent : null })`);
 await shot('05-phase.png');
 
+// 立体视图
+await ev(`__m4.newGame('std', 4242)`);
+await sleep(400);
+await ev(`__m4.setViewMode('3d')`);
+await sleep(700);
+report.view3d = await ev(`(() => {
+  const m = __m4, b = m.board;
+  return { mode: m.view.mode, cells: m.drawList.length, expect: b.NX * b.NY * b.NZ,
+    tab: document.querySelector('.view.on') ? document.querySelector('.view.on').textContent.trim() : null,
+    camBtn: !document.getElementById('btn-cam').classList.contains('hidden') };
+})()`);
+await shot('10-view-3d.png');
+
+// 在立体视图里点一个真实格子（走 mousedown/mouseup）
+report.click3d = await ev(`(() => {
+  const m = __m4, b = m.board;
+  const cvs = document.getElementById('board');
+  const r = cvs.getBoundingClientRect();
+  const c = m.drawList.find((c) => b.state[c.i] === 0);
+  if (!c) return 'no cell';
+  const cx = r.left + c.sx, cy = r.top + c.sy;
+  cvs.dispatchEvent(new MouseEvent('mousedown', { clientX: cx, clientY: cy, button: 0, bubbles: true }));
+  window.dispatchEvent(new MouseEvent('mouseup', { clientX: cx, clientY: cy, button: 0, bubbles: true }));
+  return { idx: c.i, opened: b.opened, started: b.started, revealed: b.state[c.i] === 1 };
+})()`);
+await sleep(400);
+await shot('10b-3d-click.png');
+
+// 拖动旋转 + 滚轮缩放
+report.rotate = await ev(`(() => {
+  const m = __m4, cvs = document.getElementById('board');
+  const r = cvs.getBoundingClientRect();
+  const y0 = m.cam.yaw, p0 = m.cam.pitch, z0 = m.cam.zoom;
+  cvs.dispatchEvent(new MouseEvent('mousedown', { clientX: r.left + 220, clientY: r.top + 200, button: 0, bubbles: true }));
+  window.dispatchEvent(new MouseEvent('mousemove', { clientX: r.left + 300, clientY: r.top + 250, bubbles: true }));
+  window.dispatchEvent(new MouseEvent('mouseup', { clientX: r.left + 300, clientY: r.top + 250, button: 0, bubbles: true }));
+  cvs.dispatchEvent(new WheelEvent('wheel', { deltaY: -240, bubbles: true, cancelable: true }));
+  return { yaw0: +y0.toFixed(2), yaw1: +m.cam.yaw.toFixed(2), p0: +p0.toFixed(2), p1: +m.cam.pitch.toFixed(2),
+    zoom0: +z0.toFixed(2), zoom1: +m.cam.zoom.toFixed(2) };
+})()`);
+await sleep(400);
+await shot('10c-3d-rotated.png');
+
+// 四维视图：所有相位并排
+await ev(`__m4.setViewMode('4d')`);
+await sleep(700);
+report.view4d = await ev(`(() => {
+  const m = __m4, b = m.board;
+  return { mode: m.view.mode, cells: m.drawList.length, expect: b.n, phases: b.NW,
+    labels: document.getElementById('board') ? 1 : 0 };
+})()`);
+await shot('11-view-4d.png');
+
+// 键盘 1 回到平面
+report.back2d = await ev(`(() => {
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: '1' }));
+  return { mode: __m4.view.mode, camBtnHidden: document.getElementById('btn-cam').classList.contains('hidden') };
+})()`);
+await sleep(300);
+
 // 提示
 report.hint = await ev(`(() => { __m4.doHint(); return { sel: __m4.view.sel, coords: document.getElementById('coords').textContent }; })()`);
 await sleep(300);
@@ -175,6 +235,14 @@ await shot('08-mobile.png');
 await ev(`__m4.reveal(__m4.board.at(2,2,__m4.view.z,__m4.view.w))`);
 await sleep(500);
 await shot('09-mobile-open.png');
+await ev(`__m4.newGame('std', 4242)`);
+await sleep(400);
+await ev(`__m4.setViewMode('3d')`);
+await sleep(700);
+report.mobile3d = await ev(`({ mode: __m4.view.mode, cells: __m4.drawList.length,
+  boardW: Math.round(document.getElementById('board').getBoundingClientRect().width) })`);
+await shot('12-mobile-3d.png');
+await ev(`__m4.setViewMode('2d')`);
 
 report.logs = logs;
 console.log(JSON.stringify(report, null, 2));

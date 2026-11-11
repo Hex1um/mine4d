@@ -8,7 +8,8 @@ const SAVE_KEY = 'mine4d.save.v1';
 
 let save = { diff: 'std', best: {}, lastW: 0, mode: 'face' };
 let board = null;
-const view = { w: 0, z: 0, hover: -1, sel: -1, sweepT: 0 };
+const view = { w: 0, z: 0, hover: -1, sel: -1, sweepT: 0, mode: '2d' };
+const VIEW_NAMES = { '2d': '平面', '3d': '立体', '4d': '四维' };
 const mouse = { x: 0, y: 0, inside: false };
 let geom = null, booted = false, lastT = 0;
 
@@ -65,20 +66,35 @@ function newGame(diffId, seed) {
   M.UI.clearLog();
   M.setMode(save.mode || 'face');
   board = M.makeBoard(cfg, seed || ((Math.random() * 1e9) | 0));
+  view.mode = save.viewMode || '2d';
   view.w = Math.min(save.lastW || 0, board.NW - 1);
   view.z = Math.floor(board.NZ / 2);
   view.hover = -1; view.sel = -1; view.sweepT = 0.55;
   UI.buildDiffBar(cfg.id, pickDiff);
   UI.buildModeBar(board.mode, pickMode);
+  UI.buildViewBar(view.mode, setViewMode);
   UI.buildZTabs(board, view.z, setZ);
   const w = UI.el['w-slider'];
   w.max = String(board.NW - 1);
   w.value = String(view.w);
   UI.banner(null);
   UI.log(`雷场重建 · ${cfg.name} ${cfg.dims.join('×')} · ${board.mines} 枚雷 · ${M.MODES[board.mode].name}`, 'info');
-  UI.log('首击必定安全（点击格与 80 邻均已排空）', 'info');
-  UI.setHintLine('左键 排雷 · 右键 插旗 · 已开数字上左键可快开 · <b>W/S</b> 切相位 · <b>A/D</b> 切层 · <b>T</b> 自动推理 · <b>G</b> 提示');
+  UI.log('首击必定安全（点击格与整个邻域均已排空）', 'info');
+  if (view.mode !== '2d') M.R3.resetCam(view.mode);
+  UI.setHintLine('左键 排雷 · 右键 插旗 · <b>1/2/3</b> 切视图 · <b>W/S</b> 切相位 · <b>A/D</b> 切层 · <b>T</b> 自动推理 · <b>G</b> 提示');
   writeSave();
+}
+
+function setViewMode(m) {
+  if (!VIEW_NAMES[m]) return;
+  view.mode = m;
+  save.viewMode = m;
+  writeSave();
+  UI.buildViewBar(m, setViewMode);
+  UI.el['btn-cam'].classList.toggle('hidden', m === '2d');
+  if (m !== '2d') M.R3.resetCam(m);
+  UI.log('视图 · ' + VIEW_NAMES[m] + (m === '2d' ? '（单张切片）' : m === '3d' ? '（整层 Z 立方）' : '（相位 W 并排展开）'), 'info');
+  sfx.slice();
 }
 
 function pickMode(m) {
@@ -168,6 +184,16 @@ function setZ(z) {
   UI.buildZTabs(board, view.z, setZ);
 }
 
+// ---------- 命中 ----------
+function hitAt(p) {
+  if (!board) return -1;
+  if (view.mode === '2d') {
+    mouse.x = p.x; mouse.y = p.y;
+    return R.boardHit(geom, board, view, mouse);
+  }
+  return M.R3.hit(board, view, p);
+}
+
 // ---------- 推理 ----------
 function doAuto() {
   if (!board || board.over) return;
@@ -213,49 +239,99 @@ function bind() {
     const r = cvs.getBoundingClientRect();
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   };
+  const is3d = () => view.mode !== '2d';
+
+  // 左键在平面视图立刻生效；立体/四维视图先当作拖动旋转，松手没移动才算点击
+  let drag = null;
 
   cvs.addEventListener('mousemove', (e) => {
     const p = pos(e);
     mouse.x = p.x; mouse.y = p.y; mouse.inside = true;
-    view.hover = R.boardHit(geom, board, view, mouse);
+    if (drag) return;
+    view.hover = hitAt(p);
+    if (board && board.state[view.hover] === M.OPEN) cvs.style.cursor = 'crosshair';
+    else cvs.style.cursor = drag ? 'grabbing' : (is3d() ? 'grab' : 'default');
   });
   cvs.addEventListener('mouseleave', () => { mouse.inside = false; view.hover = -1; });
+
   cvs.addEventListener('mousedown', (e) => {
     if (!booted) return;
     const p = pos(e);
     mouse.x = p.x; mouse.y = p.y;
+    view.hover = hitAt(p);
+    if (e.button === 2) { if (view.hover >= 0) flag(view.hover); e.preventDefault(); return; }
+    if (is3d()) {
+      drag = { x: p.x, y: p.y, yaw: M.R3.cam.yaw, pitch: M.R3.cam.pitch, moved: 0 };
+      cvs.classList.add('dragging');
+      e.preventDefault();
+      return;
+    }
     const i = R.boardHit(geom, board, view, mouse);
     if (i < 0) return;
     e.preventDefault();
-    if (e.button === 2) flag(i);
-    else if (e.button === 0) {
-      if (board.state[i] === M.OPEN) chord(i);
-      else reveal(i);
+    if (board.state[i] === M.OPEN) chord(i);
+    else reveal(i);
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!drag) return;
+    const p = pos(e);
+    const dx = p.x - drag.x, dy = p.y - drag.y;
+    drag.moved = Math.max(drag.moved, Math.hypot(dx, dy));
+    M.R3.cam.yaw = drag.yaw - dx * 0.009;
+    M.R3.cam.pitch = Math.max(-0.08, Math.min(1.4, drag.pitch + dy * 0.007));
+  });
+  window.addEventListener('mouseup', (e) => {
+    if (!drag) return;
+    const p = pos(e);
+    const moved = drag.moved;
+    drag = null;
+    cvs.classList.remove('dragging');
+    if (moved < 6) {
+      const i = hitAt(p);
+      if (i >= 0) { if (board.state[i] === M.OPEN) chord(i); else reveal(i); }
     }
   });
-  cvs.addEventListener('contextmenu', (e) => e.preventDefault());
 
-  // 触屏：轻点排雷，长按插旗
+  cvs.addEventListener('contextmenu', (e) => e.preventDefault());
+  cvs.addEventListener('wheel', (e) => {
+    if (!is3d()) return;
+    e.preventDefault();
+    const k = Math.exp(-e.deltaY * 0.0012);
+    M.R3.cam.zoom = Math.max(0.45, Math.min(3, M.R3.cam.zoom * k));
+  }, { passive: false });
+
+  // 触屏：轻点排雷，长按插旗；立体/四维下拖动旋转
   let touchTimer = null, touchIdx = -1, touchStart = null;
   cvs.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse' || !booted) return;
     const p = pos(e);
     mouse.x = p.x; mouse.y = p.y;
-    touchIdx = R.boardHit(geom, board, view, mouse);
-    if (touchIdx < 0) return;
+    touchIdx = hitAt(p);
     view.hover = touchIdx;
-    touchStart = { x: p.x, y: p.y };
+    touchStart = { x: p.x, y: p.y, yaw: M.R3.cam.yaw, pitch: M.R3.cam.pitch, moved: 0 };
+    if (touchIdx < 0 && !is3d()) return;
     touchTimer = setTimeout(() => {
       touchTimer = null;
-      flag(touchIdx);
-      if (navigator.vibrate) navigator.vibrate(18);
+      if (touchIdx >= 0) {
+        flag(touchIdx);
+        if (navigator.vibrate) navigator.vibrate(18);
+      }
     }, 420);
+  }, { passive: true });
+  cvs.addEventListener('pointermove', (e) => {
+    if (e.pointerType === 'mouse' || !touchStart || !is3d()) return;
+    const p = pos(e);
+    const dx = p.x - touchStart.x, dy = p.y - touchStart.y;
+    touchStart.moved = Math.max(touchStart.moved, Math.hypot(dx, dy));
+    if (touchStart.moved > 10 && touchTimer) { clearTimeout(touchTimer); touchTimer = null; }
+    M.R3.cam.yaw = touchStart.yaw - dx * 0.009;
+    M.R3.cam.pitch = Math.max(-0.08, Math.min(1.4, touchStart.pitch + dy * 0.007));
   }, { passive: true });
   cvs.addEventListener('pointerup', (e) => {
     if (e.pointerType === 'mouse') return;
     if (!touchStart) return;
-    const p = pos(e);
-    const moved = Math.hypot(p.x - touchStart.x, p.y - touchStart.y);
+    const moved = touchStart.moved;
     if (touchTimer) {
       clearTimeout(touchTimer); touchTimer = null;
       if (moved < 12 && touchIdx >= 0) {
@@ -267,11 +343,13 @@ function bind() {
     view.hover = -1;
   });
   cvs.addEventListener('pointercancel', () => { if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; } touchStart = null; });
+  cvs.addEventListener('dblclick', () => { if (is3d()) M.R3.resetCam(view.mode); });
 
   UI.el['w-slider'].addEventListener('input', (e) => setPhase(+e.target.value));
   UI.el['btn-new'].addEventListener('click', () => newGame());
   UI.el['btn-auto'].addEventListener('click', doAuto);
   UI.el['btn-hint'].addEventListener('click', doHint);
+  UI.el['btn-cam'].addEventListener('click', () => { M.R3.resetCam(view.mode); sfx.slice(); });
   UI.el['btn-help'].addEventListener('click', () => UI.help(UI.el.help.classList.contains('hidden')));
 
   window.addEventListener('keydown', (e) => {
@@ -282,6 +360,9 @@ function bind() {
     if (k === 'g') { doHint(); return; }
     if (k === 'h' || k === '?') { UI.help(UI.el.help.classList.contains('hidden')); return; }
     if (k === 'escape') { UI.help(false); return; }
+    if (k === '1') { setViewMode('2d'); return; }
+    if (k === '2') { setViewMode('3d'); return; }
+    if (k === '3') { setViewMode('4d'); return; }
     if (k === 'w') { e.preventDefault(); setPhase(view.w + 1); return; }
     if (k === 's') { e.preventDefault(); setPhase(view.w - 1); return; }
     if (k === 'a') { e.preventDefault(); setZ(view.z - 1); return; }
@@ -306,6 +387,7 @@ function bind() {
 
   window.addEventListener('resize', () => { R.resize(); });
 }
+
 // 让鼠标点击后键盘仍然可用（避免焦点落在按钮上被空格触发）
 window.addEventListener('mouseup', () => { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); });
 
@@ -320,8 +402,12 @@ function tick(ts) {
   if (!board.over && board.started) board.time += dt;
   if (view.sweepT > 0) view.sweepT = Math.max(0, view.sweepT - dt);
 
-  geom = R.drawBoard(board, view, now);
-  R.geom = geom;
+  if (view.mode === '2d') {
+    geom = R.drawBoard(board, view, now);
+    R.geom = geom;
+  } else {
+    M.R3.draw(board, view, now);
+  }
   const w = view.w;
   R.drawThumb(UI.el.thumb0, board, view.z, w - 1, now, false);
   R.drawThumb(UI.el.thumb1, board, view.z, w, now, true);
@@ -336,7 +422,8 @@ function tick(ts) {
     const nb = board.neighbors(hoverIdx, []);
     let f = 0, u = 0;
     for (const q of nb) { if (board.state[q] === M.FLAG) f++; else if (board.state[q] === M.HIDDEN) u++; }
-    UI.el.hintline.innerHTML = `格 [${x},${y},${z},${pw}] · 80 邻中 未知 ${u} / 已标 ${f}`;
+    const total = board.neighbors(hoverIdx, []).length;
+    UI.el.hintline.innerHTML = `格 [${x},${y},${z},${pw}] · ${total} 邻中 未知 ${u} / 已标 ${f}`;
   }
 }
 
@@ -357,6 +444,7 @@ function boot() {
   // 供自动化测试使用
   window.__m4 = {
     get board() { return board; }, view, newGame, reveal, flag, chord, doAuto, doHint,
+    setViewMode, get cam() { return M.R3.cam; }, get drawList() { return M.R3.drawList; },
     setPhase, setZ, pickDiff, get booted() { return booted; }, get geom() { return geom; },
     save
   };
