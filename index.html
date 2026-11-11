@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#05090d">
+<title>MINE·4D — 四维排雷终端</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23081016'/%3E%3Ccircle cx='16' cy='16' r='8' fill='none' stroke='%2322d3ee' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='2.6' fill='%23ff3b6b'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="fonts/fonts.css?v=1.0.0">
+<link rel="stylesheet" href="style.css?v=1.0.0">
+</head>
+<body>
+<div class="crt" aria-hidden="true"></div>
+<div class="scanbeam" aria-hidden="true"></div>
+
+<header class="top">
+  <div class="brand">
+    <span class="logo"><i></i><i></i><i></i><i></i></span>
+    <div>
+      <b>MINE·4D</b>
+      <small>FOUR-DIMENSIONAL DEMINING TERMINAL</small>
+    </div>
+  </div>
+
+  <nav id="diff-bar" class="diffs"></nav>
+  <div id="mode-bar" class="modes"></div>
+
+  <div class="stats">
+    <div class="stat"><label>剩余雷</label><b id="mines-left">000</b></div>
+    <div class="stat"><label>时间</label><b id="clock">00:00</b></div>
+    <div class="stat"><label>已扫描</label><b id="opened">0%</b></div>
+    <div class="stat wide"><label>坐标 X Y Z W</label><b id="coords">[-,0,-,0]</b></div>
+  </div>
+
+  <div class="acts">
+    <button id="btn-new" class="btn">重新生成<i>R</i></button>
+    <button id="btn-auto" class="btn">自动推理<i>T</i></button>
+    <button id="btn-hint" class="btn">提示<i>G</i></button>
+    <button id="btn-help" class="btn ghost">手册<i>H</i></button>
+  </div>
+</header>
+
+<main>
+  <section class="board-wrap">
+    <canvas id="board"></canvas>
+    <div id="banner" class="banner"></div>
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+  </section>
+
+  <aside class="side">
+    <section class="panel">
+      <h3>相位剖面 <em>PHASE PROFILE</em></h3>
+      <div class="thumbs">
+        <figure><figcaption id="cap-w0">W-1</figcaption><canvas id="thumb0"></canvas></figure>
+        <figure><figcaption id="cap-w1">W</figcaption><canvas id="thumb1"></canvas></figure>
+        <figure><figcaption id="cap-w2">W+1</figcaption><canvas id="thumb2"></canvas></figure>
+      </div>
+      <p class="note">同一层 Z 在相位 W−1 / W / W+1 上的三张切片。</p>
+    </section>
+
+    <section class="panel">
+      <h3>4D 邻域扫描仪 <em>SCANNER</em></h3>
+      <canvas id="scanner"></canvas>
+      <p class="note" id="nb-note">9 个小块 = 3 个相位 × 3 个层，每块是 3×3 平面邻域。</p>
+    </section>
+
+    <section class="panel log-panel">
+      <h3>日志 <em>LOG</em></h3>
+      <ul id="log"></ul>
+    </section>
+  </aside>
+</main>
+
+<footer class="bottom">
+  <div class="phase-ctl">
+    <label>相位 W</label>
+    <input id="w-slider" type="range" min="0" max="3" value="0" step="1">
+    <b id="w-val">W0</b>
+  </div>
+  <div id="z-tabs" class="z-tabs"></div>
+  <div id="hintline" class="hintline">左键 排雷 · 右键 插旗 · W/S 切相位 · A/D 切层</div>
+</footer>
+
+<div id="boot" class="boot">
+  <pre id="boot-text"></pre>
+  <div class="boot-hint">按 <b>ENTER</b> 或点击进入</div>
+</div>
+
+<div id="help" class="modal hidden">
+  <div class="modal-box">
+    <header>
+      <h2>操作手册</h2>
+      <button class="close" data-close>×</button>
+    </header>
+    <div class="modal-body">
+      <h4>这是什么</h4>
+      <p>经典扫雷被搬到了四个正交维度：雷场是 <b>x × y × z × w</b> 的四维晶格，你每次只看到 <b>(x, y)</b> 这一片平面，用「层 Z」和「相位 W」在四维里移动。</p>
+      <h4>两种邻域</h4>
+      <p><b>面邻 8</b>（默认）：只算四个维度上「贴着」的 8 个格子（±x、±y、±z、±w），数字 0–8，和经典扫雷一样可以纯逻辑推完。<br>
+      <b>全域 80</b>：四维切比雪夫邻域，共 80 个邻居（同层 8 邻 + 上下层各 9 + 相邻相位各 27），数字会很大，右侧扫描仪按「相位 × 层」把它拆成 9 个小块。</p>
+      <h4>数字的含义</h4>
+      <p>数字 = 该格邻域中的雷数。面邻 8 模式下就是经典扫雷；全域 80 模式下 80 个邻居里有多少雷，数字就是多少。</p>
+      <h4>怎么玩</h4>
+      <ul>
+        <li><b>左键</b> 排雷 · 在已开的数字上左键 = 快开（周围旗数等于数字时揭开其余）</li>
+        <li><b>右键 / 长按</b> 插旗 · <b>空格</b> 对光标格操作 · <b>F</b> 插旗 · <b>C</b> 快开</li>
+        <li><b>W / S</b> 或底部滑杆切相位 · <b>A / D</b> 或 Z0–Zn 切层 · 方向键移动光标</li>
+        <li><b>T</b> 自动推理：只做「必定成立」的两类推导，不会瞎猜 · <b>G</b> 提示一处可确定的格子</li>
+      </ul>
+      <h4>首击安全</h4>
+      <p>第一次点击的格子连同它的 80 个邻居都会被排空，必定打开一片空地。</p>
+    </div>
+  </div>
+</div>
+
+<script src="js/core.js?v=1.0.0"></script>
+<script src="js/render.js?v=1.0.0"></script>
+<script src="js/ui.js?v=1.0.0"></script>
+<script src="js/main.js?v=1.0.0"></script>
+</body>
+</html>
