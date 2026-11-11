@@ -2,131 +2,113 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#05090d">
-<title>MINE·4D — 四维排雷终端</title>
+<title>扫雷集合 — MINESWEEPER ARCHIVE</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23081016'/%3E%3Ccircle cx='16' cy='16' r='8' fill='none' stroke='%2322d3ee' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='2.6' fill='%23ff3b6b'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="fonts/fonts.css?v=1.1.1">
-<link rel="stylesheet" href="style.css?v=1.1.1">
+<link rel="stylesheet" href="4d/fonts/fonts.css?v=1.1.1">
+<style>
+:root {
+  --bg: #04080c; --panel: rgba(8,19,26,.92); --line: rgba(34,211,238,.16); --line2: rgba(34,211,238,.34);
+  --ink: #cfe9f0; --ink-soft: #7fa3b0; --ink-dim: #4a6b78;
+  --cyan: #22d3ee; --cyan2: #67e8f9; --amber: #ffb020; --magenta: #ff3b6b; --green: #7dffb2;
+  --mono: 'Space Mono', ui-monospace, monospace; --ui: 'Outfit','PingFang SC','Microsoft YaHei',sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html,body { min-height:100%; }
+body {
+  background:
+    radial-gradient(120% 90% at 50% -10%, rgba(34,211,238,.10), transparent 55%),
+    radial-gradient(90% 70% at 110% 110%, rgba(255,59,107,.07), transparent 60%),
+    linear-gradient(180deg,#050b11,#03070a);
+  color: var(--ink); font-family: var(--ui); font-size: 15px;
+  -webkit-font-smoothing: antialiased; padding: clamp(20px, 5vw, 64px);
+  display: grid; gap: clamp(18px, 3vw, 34px); align-content: start;
+}
+body::before {
+  content:''; position: fixed; inset:0; pointer-events:none; z-index:0;
+  background-image: linear-gradient(rgba(34,211,238,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,.045) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(120% 90% at 50% 0%, #000 30%, transparent 78%);
+}
+.crt { position: fixed; inset:0; pointer-events:none; z-index:9;
+  background: repeating-linear-gradient(180deg, rgba(255,255,255,.025) 0 1px, transparent 1px 3px); mix-blend-mode: screen; opacity:.5; }
+header { position: relative; z-index:1; display:grid; gap:10px; }
+.kicker { font-family: var(--mono); font-size: 10px; letter-spacing:.34em; color: var(--ink-dim); }
+h1 { font-family: var(--mono); font-size: clamp(26px, 5.4vw, 52px); letter-spacing:.06em; color:#eafcff;
+  text-shadow: 0 0 40px rgba(34,211,238,.35); line-height:1.05; }
+h1 span { color: var(--cyan); }
+.lede { max-width: 62ch; font-size: 13.5px; line-height:1.9; color: var(--ink-soft); }
+.lede b { color: var(--ink); font-weight: 600; }
+
+.list { position: relative; z-index:1; display:grid; gap:12px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.card {
+  display:grid; gap:10px; align-content:start; text-decoration:none; color:inherit;
+  padding: 20px 22px 18px;
+  background: var(--panel); border:1px solid var(--line);
+  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
+  transition: transform 180ms cubic-bezier(.22,1,.36,1), border-color 180ms, background 180ms;
+}
+.card:hover { transform: translateY(-3px); border-color: var(--line2); background: rgba(10,26,34,.95); }
+.card .no { font-family: var(--mono); font-size: 9px; letter-spacing:.24em; color: var(--ink-dim); }
+.card h2 { font-family: var(--mono); font-size: 20px; letter-spacing:.1em; color:#eafcff; }
+.card h2 em { font-style:normal; font-size: 10px; letter-spacing:.2em; color: var(--cyan); margin-left:8px; }
+.card .desc { font-size: 12.5px; line-height: 1.85; color: var(--ink-soft); }
+.card .meta { display:flex; gap:14px; flex-wrap:wrap; font-family: var(--mono); font-size: 9.5px; letter-spacing:.1em; color: var(--ink-dim); }
+.card .meta b { color: var(--cyan2); font-weight: 400; }
+.card .go { font-family: var(--mono); font-size: 10.5px; letter-spacing:.16em; color: var(--cyan); margin-top: 2px; }
+.card.fractal h2 { color: #eafff7; }
+.card.fractal h2 em { color: var(--green); }
+.card.fractal .go { color: var(--green); }
+.card.fractal:hover { border-color: rgba(125,255,178,.34); }
+
+footer { position: relative; z-index:1; display:flex; gap:18px; flex-wrap:wrap; align-items:baseline;
+  font-family: var(--mono); font-size: 9.5px; letter-spacing:.12em; color: var(--ink-dim); border-top:1px solid var(--line); padding-top:14px; }
+footer a { color: var(--ink-soft); text-decoration:none; border-bottom:1px solid var(--line); }
+footer a:hover { color: var(--cyan2); }
+@media (max-width: 560px) { body { font-size: 14px; } .card { padding: 16px 16px 14px; } }
+</style>
 </head>
 <body>
 <div class="crt" aria-hidden="true"></div>
-<div class="scanbeam" aria-hidden="true"></div>
 
-<header class="top">
-  <div class="brand">
-    <span class="logo"><i></i><i></i><i></i><i></i></span>
-    <div>
-      <b>MINE·4D</b>
-      <small>FOUR-DIMENSIONAL DEMINING TERMINAL</small>
-    </div>
-  </div>
-
-  <nav id="diff-bar" class="diffs"></nav>
-  <div id="mode-bar" class="modes"></div>
-
-  <div class="stats">
-    <div class="stat"><label>剩余雷</label><b id="mines-left">000</b></div>
-    <div class="stat"><label>时间</label><b id="clock">00:00</b></div>
-    <div class="stat"><label>已扫描</label><b id="opened">0%</b></div>
-    <div class="stat wide"><label>坐标 X Y Z W</label><b id="coords">[-,0,-,0]</b></div>
-  </div>
-
-  <div class="acts">
-    <button id="btn-new" class="btn">重新生成<i>R</i></button>
-    <button id="btn-auto" class="btn">自动推理<i>T</i></button>
-    <button id="btn-hint" class="btn">提示<i>G</i></button>
-    <button id="btn-cam" class="btn ghost hidden">复位视角</button>
-    <button id="btn-help" class="btn ghost">手册<i>H</i></button>
-  </div>
+<header>
+  <div class="kicker">MINESWEEPER ARCHIVE · 扫雷集合</div>
+  <h1>扫雷<span>·</span>变体档案</h1>
+  <p class="lede">
+    同一个雷场，不同的空间。每一版都保留经典规则（数字 = 邻域雷数、首击安全、插旗、快开），
+    但换掉了「棋盘的几何」。当前收录 <b>2</b> 个变体，各自独立、零构建、离线可玩。
+  </p>
 </header>
 
-<main>
-  <section class="board-wrap">
-    <canvas id="board"></canvas>
-    <div id="view-bar" class="views"></div>
-    <div id="banner" class="banner"></div>
-    <div class="corner tl"></div><div class="corner tr"></div>
-    <div class="corner bl"></div><div class="corner br"></div>
-  </section>
+<main class="list">
+  <a class="card" href="4d/">
+    <span class="no">VARIANT 01 · 已发布</span>
+    <h2>MINE·4D <em>四维排雷</em></h2>
+    <p class="desc">
+      雷场是 <b>x × y × z × w</b> 的四维晶格。三种看法：单张 (x,y) 切片、可旋转的立体晶格、把全部相位并排展开的四维视图。
+      两套邻域：面邻 8（经典手感）与全域 80（硬核）。四维邻域扫描仪会把 80 个邻居拆成「3 相位 × 3 层」。
+    </p>
+    <div class="meta"><span>v1.1.1</span><span>4×4×4×4 → 10×10×6×5</span><span><b>3</b> 种视图</span></div>
+    <span class="go">进入终端 →</span>
+  </a>
 
-  <aside class="side">
-    <section class="panel">
-      <h3>相位剖面 <em>PHASE PROFILE</em></h3>
-      <div class="thumbs">
-        <figure><figcaption id="cap-w0">W-1</figcaption><canvas id="thumb0"></canvas></figure>
-        <figure><figcaption id="cap-w1">W</figcaption><canvas id="thumb1"></canvas></figure>
-        <figure><figcaption id="cap-w2">W+1</figcaption><canvas id="thumb2"></canvas></figure>
-      </div>
-      <p class="note">同一层 Z 在相位 W−1 / W / W+1 上的三张切片。</p>
-    </section>
-
-    <section class="panel">
-      <h3>4D 邻域扫描仪 <em>SCANNER</em></h3>
-      <canvas id="scanner"></canvas>
-      <p class="note" id="nb-note">9 个小块 = 3 个相位 × 3 个层，每块是 3×3 平面邻域。</p>
-    </section>
-
-    <section class="panel log-panel">
-      <h3>日志 <em>LOG</em></h3>
-      <ul id="log"></ul>
-    </section>
-  </aside>
+  <a class="card fractal" href="fractal/">
+    <span class="no">VARIANT 02 · 实验</span>
+    <h2>FRACTAL·MINE <em>分形排雷</em></h2>
+    <p class="desc">
+      雷场不再有限：雷的密度由 <b>Julia 集的逃逸时间</b>决定，所以雷会沿着分形的丝状边界聚集。
+      棋盘可以无限平移、缩放，缩得越深细节越多——你清完的每一块「扇区」都记在账上。
+    </p>
+    <div class="meta"><span>v0.1.0</span><span>无限平面</span><span><b>自相似</b> 雷场</span></div>
+    <span class="go">进入终端 →</span>
+  </a>
 </main>
 
-<footer class="bottom">
-  <div class="phase-ctl">
-    <label>相位 W</label>
-    <input id="w-slider" type="range" min="0" max="3" value="0" step="1">
-    <b id="w-val">W0</b>
-  </div>
-  <div id="z-tabs" class="z-tabs"></div>
-  <div id="hintline" class="hintline">左键 排雷 · 右键 插旗 · W/S 切相位 · A/D 切层</div>
+<footer>
+  <span>零构建 · 零依赖 · 纯 canvas</span>
+  <a href="https://github.com/Hex1um/mine4d">源码 GitHub</a>
+  <span>字体 Space Mono / Outfit（OFL）</span>
 </footer>
-
-<div id="boot" class="boot">
-  <pre id="boot-text"></pre>
-  <div class="boot-hint">按 <b>ENTER</b> 或点击进入</div>
-</div>
-
-<div id="help" class="modal hidden">
-  <div class="modal-box">
-    <header>
-      <h2>操作手册</h2>
-      <button class="close" data-close>×</button>
-    </header>
-    <div class="modal-body">
-      <h4>这是什么</h4>
-      <p>经典扫雷被搬到了四个正交维度：雷场是 <b>x × y × z × w</b> 的四维晶格，你每次只看到 <b>(x, y)</b> 这一片平面，用「层 Z」和「相位 W」在四维里移动。</p>
-      <h4>两种邻域</h4>
-      <p><b>面邻 8</b>（默认）：只算四个维度上「贴着」的 8 个格子（±x、±y、±z、±w），数字 0–8，和经典扫雷一样可以纯逻辑推完。<br>
-      <b>全域 80</b>：四维切比雪夫邻域，共 80 个邻居（同层 8 邻 + 上下层各 9 + 相邻相位各 27），数字会很大，右侧扫描仪按「相位 × 层」把它拆成 9 个小块。</p>
-      <h4>数字的含义</h4>
-      <p>数字 = 该格邻域中的雷数。面邻 8 模式下就是经典扫雷；全域 80 模式下 80 个邻居里有多少雷，数字就是多少。</p>
-      <h4>三种视图</h4>
-      <ul>
-        <li><b>平面</b>（1）：只画 <b>(x, y)</b> 这一张切片，最清晰，适合推逻辑。</li>
-        <li><b>立体</b>（2）：把当前相位的 <b>x × y × z</b> 整块画出来，层 Z 变成真正的「楼层」。</li>
-        <li><b>四维</b>（3）：把全部相位 <b>W0…Wn</b> 沿一个方向并排展开，四维一次性摊开在眼前。</li>
-      </ul>
-      <p>立体与四维视图里：<b>拖动</b>旋转、<b>滚轮 / 双指</b>缩放、<b>双击</b>或「复位视角」回到默认机位。左键点格子照样排雷，右键插旗，当前层与当前相位会高亮。</p>
-      <h4>怎么玩</h4>
-      <ul>
-        <li><b>左键</b> 排雷 · 在已开的数字上左键 = 快开（周围旗数等于数字时揭开其余）</li>
-        <li><b>右键 / 长按</b> 插旗 · <b>空格</b> 对光标格操作 · <b>F</b> 插旗 · <b>C</b> 快开</li>
-        <li><b>W / S</b> 或底部滑杆切相位 · <b>A / D</b> 或 Z0–Zn 切层 · 方向键移动光标</li>
-        <li><b>T</b> 自动推理：只做「必定成立」的两类推导，不会瞎猜 · <b>G</b> 提示一处可确定的格子</li>
-      </ul>
-      <h4>首击安全</h4>
-      <p>第一次点击的格子连同它的 80 个邻居都会被排空，必定打开一片空地。</p>
-    </div>
-  </div>
-</div>
-
-<script src="js/core.js?v=1.1.1"></script>
-<script src="js/render.js?v=1.1.1"></script>
-<script src="js/render3d.js?v=1.1.1"></script>
-<script src="js/ui.js?v=1.1.1"></script>
-<script src="js/main.js?v=1.1.1"></script>
 </body>
 </html>
