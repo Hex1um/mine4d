@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#04080c">
+<title>FRACTAL·MINE — 分形排雷</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2304080c'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%237dffb2'/%3E%3Ccircle cx='16' cy='16' r='10' fill='none' stroke='%2322d3ee' stroke-width='1.4'/%3E%3Ccircle cx='16' cy='16' r='14' fill='none' stroke='%2322d3ee' stroke-width='1' opacity='.5'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../4d/fonts/fonts.css?v=1.2.0">
+<link rel="stylesheet" href="style.css?v=1.2.0">
+</head>
+<body>
+<div class="crt" aria-hidden="true"></div>
+
+<header class="top">
+  <div class="brand">
+    <span class="logo"><i></i><i></i><i></i><i></i></span>
+    <div>
+      <b>FRACTAL·MINE</b>
+      <small>SELF-SIMILAR DEMINING FIELD</small>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><label>目标扇区</label><b id="sec">0 , 0</b></div>
+    <div class="stat"><label>剩余雷</label><b id="mines">000</b></div>
+    <div class="stat"><label>扇区进度</label><b id="prog">0%</b></div>
+    <div class="stat"><label>用时</label><b id="clock">00:00</b></div>
+    <div class="stat"><label>缩放</label><b id="zoom">26px · ×1.00</b></div>
+    <div class="stat"><label>已清扇区</label><b id="cleared">0</b></div>
+  </div>
+
+  <div class="acts">
+    <button id="btn-next" class="btn">下一扇区<i>N</i></button>
+    <button id="btn-reset" class="btn ghost">回到目标</button>
+    <button id="btn-new" class="btn">重新播种<i>R</i></button>
+    <button id="btn-heat" class="btn ghost">密度场</button>
+    <button id="btn-help" class="btn ghost">手册<i>H</i></button>
+  </div>
+</header>
+
+<main>
+  <section class="board-wrap">
+    <canvas id="board"></canvas>
+    <div id="banner" class="banner"></div>
+    <div class="zoombar">
+      <button id="btn-zoom-in" class="zbtn">+</button>
+      <button id="btn-zoom-out" class="zbtn">−</button>
+    </div>
+    <div class="console">
+      <h3>LOG</h3>
+      <ul id="log"></ul>
+    </div>
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+  </section>
+</main>
+
+<footer class="bottom">
+  <div class="hintline">
+    拖动平移 · 滚轮/双指缩放 · 左键排雷 · 右键或长按插旗 · 箭头平移 · <b>N</b> 下一扇区 · <b>R</b> 重新播种
+  </div>
+</footer>
+
+<div id="help" class="modal hidden">
+  <div class="modal-box">
+    <header>
+      <h2>操作手册 · FRACTAL·MINE</h2>
+      <button class="close" data-close>×</button>
+    </header>
+    <div class="modal-body">
+      <h4>和经典扫雷的关系</h4>
+      <p>规则完全一样：数字 = 周围 8 格的雷数，空格自动连片翻开，首击必定安全（点击格与 8 邻一起排空），左键排雷、右键插旗、已开数字上左键快开。</p>
+      <h4>不同的地方：雷的分布是分形的</h4>
+      <p>每个坐标先算一次 <b>Julia 集</b>的逃逸步数 ε（<code>z ← z² + c</code>，c = −0.7269 + 0.1889i），再用 ε 落在 <b>边界带</b>的接近程度决定该格是雷的概率。于是雷会沿着分形的丝状边界聚集，空出大片「湖」——你翻开后看到的数字排布，本身就是分形的形状。</p>
+      <p>每个格子的雷与否由坐标和种子唯一确定（哈希 + 密度阈值），所以<b>平移、缩放、关掉再打开，雷场都不会变</b>。</p>
+      <h4>无限棋盘的目标</h4>
+      <p>雷场无限大，所以目标不是「清空全图」，而是清空被虚线框住的那个 <b>21 × 21 扇区</b>：把扇区内所有非雷格翻开即算清空，累计计数并自动指向下一个未清扇区（<b>N</b> 键直接跳过去）。踩雷则本局结束，按 <b>R</b> 换种子重开。</p>
+      <h4>为什么可以一直缩下去</h4>
+      <p>Julia 集在边界附近是自相似的：缩得越深，丝状结构的细节越多（受迭代上限 26 步限制）。「密度场」开关会把理论概率用青色底噪画出来，它只告诉你哪儿更可能有雷，不告诉你具体哪一格——那是脚手架，不是答案。</p>
+    </div>
+  </div>
+</div>
+
+<script src="js/field.js?v=1.2.0"></script>
+<script src="js/render.js?v=1.2.0"></script>
+<script src="js/main.js?v=1.2.0"></script>
+</body>
+</html>
