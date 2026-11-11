@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#04080c">
 <title>FRACTAL·MINE — 分形排雷</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2304080c'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%237dffb2'/%3E%3Ccircle cx='16' cy='16' r='10' fill='none' stroke='%2322d3ee' stroke-width='1.4'/%3E%3Ccircle cx='16' cy='16' r='14' fill='none' stroke='%2322d3ee' stroke-width='1' opacity='.5'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="../4d/fonts/fonts.css?v=1.3.0">
-<link rel="stylesheet" href="style.css?v=1.3.0">
+<link rel="stylesheet" href="../4d/fonts/fonts.css?v=1.4.0">
+<link rel="stylesheet" href="style.css?v=1.4.0">
 </head>
 <body>
 <div class="crt" aria-hidden="true"></div>
@@ -27,11 +27,15 @@
     <div class="stat"><label>扇区进度</label><b id="prog">0%</b></div>
     <div class="stat"><label>用时</label><b id="clock">00:00</b></div>
     <div class="stat"><label>分形</label><b id="fractal">Julia 树</b></div>
+    <div class="stat"><label>深度</label><b id="depth">光学</b></div>
+    <div class="stat"><label>世界格</label><b id="world">—</b></div>
     <div class="stat"><label>缩放</label><b id="zoom">26px · ×1.00</b></div>
     <div class="stat"><label>已清扇区</label><b id="cleared">0</b></div>
   </div>
 
   <div class="acts">
+    <button id="btn-down" class="btn">下潜<i>]</i></button>
+    <button id="btn-up" class="btn ghost">上浮<i>[</i></button>
     <button id="btn-next" class="btn">下一扇区<i>N</i></button>
     <button id="btn-reset" class="btn ghost">回到目标</button>
     <button id="btn-new" class="btn">重新播种<i>R</i></button>
@@ -71,7 +75,18 @@
       <button class="close" data-close>×</button>
     </header>
     <div class="modal-body">
-      <h4>六种分形（左上角切换）</h4>
+      <h4>两种模式：光学 / 无限</h4>
+      <p>左上角分成两组。<b>光学（有限深度）</b>用浮点算逃逸时间与逆迭代，是最好看的经典图案，但坐标精度约 30 层后就被吃光——再放大只会看到噪声，所以它只有一层。<br>
+      <b>无限（可一直下潜）</b>换成<b>数字自动机</b>：把格坐标写成 base-n 的数字串，从低位往高位读，「这一格是不是洞」只用整数判断。整数没有精度上限，所以能一层层往下钻，而且永不重复。</p>
+      <table class="ftab">
+        <tr><th>随机分形 ∞</th><td>每一层以 34% 概率挖洞，深层继承浅层 → 任何尺度都有洞，是最"到处都能玩"的一个</td></tr>
+        <tr><th>Sierpinski 三角 ∞</th><td>base-2：数字对不许同为 1</td></tr>
+        <tr><th>Sierpinski 地毯 ∞</th><td>base-3：数字对不许同为 1</td></tr>
+        <tr><th>Vicsek 十字 ∞</th><td>base-3：数字对必须落在十字五格内</td></tr>
+      </table>
+      <p><b>下潜</b>（滚轮放大 / <code>]</code> / 「下潜」按钮）：层数 +1，一格切成 base×base 格，坐标 ×base，画面连续不跳。base 与本分形对齐——三角是 2×，其余是 3×。<b>上浮</b>反之。第 L 层的一格只有 1/base^L 个世界单位宽，深度上限 18 层（base 3 约 3.8×10⁸ 倍），这是 JavaScript 整数精度的边界，不是图案的边界。</p>
+      <p>密度 = 3×3 邻域里「洞」的比例（边界度），丝宽按<b>格</b>定义，所以<b>密度与深度无关</b>：钻到第 12 层和在地表一样难。这也是"能一直钻下去还玩得动"的关键。</p>
+      <h4>六种光学分形</h4>
       <table class="ftab">
         <tr><th>Julia 树</th><td>z ← z² + i 的逃逸时间；取 c = i 是因为这棵枝杈没有内部，整张图处处是边界</td></tr>
         <tr><th>Mandelbrot</th><td>z ← z² + c，c 就是格坐标；镜头停在「海马谷」的边界上，雷贴着边界聚集</td></tr>
@@ -94,8 +109,9 @@
   </div>
 </div>
 
-<script src="js/field.js?v=1.3.0"></script>
-<script src="js/render.js?v=1.3.0"></script>
-<script src="js/main.js?v=1.3.0"></script>
+<script src="js/inf.js?v=1.4.0"></script>
+<script src="js/field.js?v=1.4.0"></script>
+<script src="js/render.js?v=1.4.0"></script>
+<script src="js/main.js?v=1.4.0"></script>
 </body>
 </html>

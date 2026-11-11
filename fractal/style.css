@@ -124,6 +124,12 @@ main { min-height: 0; padding: 12px clamp(12px, 2vw, 24px); }
   border: 1px solid var(--line);
   backdrop-filter: blur(4px);
 }
+.mgroup {
+  align-self: center;
+  font-family: var(--mono); font-size: 7.5px; letter-spacing: 0.14em;
+  color: var(--ink-dim); padding: 0 4px 0 6px;
+}
+.mgroup + .mgroup { border-left: 1px solid var(--line); margin-left: 2px; }
 .mode {
   display: grid; gap: 0; text-align: left;
   font-family: var(--mono);

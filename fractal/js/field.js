@@ -13,6 +13,8 @@ window.FM = window.FM || {};
 const S = {
   seed: 20261111,
   mode: 'julia',
+  kind: 'opt',        // opt = 浮点光学模式；inf = 数字自动机无限模式
+  depth: 0,           // 无限模式下的下潜层数
   started: false, over: false, win: false,
   time: 0,
   safe: new Set(),
@@ -102,12 +104,30 @@ const MODES = {
 F.MODES = MODES;
 F.modeList = Object.values(MODES);
 
+// 无限模式注册（inf.js 先加载）
+function infTable() { return F.INF || {}; }
+F.allModes = function () {
+  return Object.values(MODES).concat(Object.values(infTable()));
+};
+F.modeInfo = function (id) {
+  const m = MODES[id || S.mode] || infTable()[id || S.mode];
+  return m;
+};
+F.isInf = function (id) { return !!infTable()[id || S.mode]; };
+F.baseOf = function (id) {
+  const m = infTable()[id || S.mode];
+  return m ? m.base : 2;
+};
+
 function setMode(id) {
-  if (!MODES[id]) return false;
+  const isInf = !!infTable()[id];
+  if (!MODES[id] && !isInf) return false;
   S.mode = id;
+  S.kind = isInf ? 'inf' : 'opt';
   numCache.clear();
   sectorInfo.clear();
   probeCache.clear();
+  if (F.clearInfCache) F.clearInfCache();
   return true;
 }
 F.setMode = setMode;
@@ -169,6 +189,10 @@ function raw(x, y, m) {
 F.raw = raw;
 
 function density(x, y, modeId) {
+  if (S.kind === 'inf' && (!modeId || modeId === S.mode)) {
+    const im = infTable()[S.mode];
+    return F.densityInf(x, y, S.depth, im, S.seed);
+  }
   const m = MODES[modeId || S.mode];
   const ck = key(x, y) + '|' + m.id;
   const hit = probeCache.get(ck);
@@ -196,7 +220,9 @@ const MODE_SALT = { julia: 0x1f, mandel: 0x2b, sierpinski: 0x37, koch: 0x43, vic
 function isMine(x, y) {
   if (S.safe.has(key(x, y))) return false;
   const salt = MODE_SALT[S.mode] || 0;
-  return hash(x, y, S.seed ^ salt) < density(x, y);
+  // 无限模式下每一层都是新棋局：把深度也拌进种子
+  const depthSalt = S.kind === 'inf' ? Math.imul(S.depth + 1, 2654435761) : 0;
+  return hash(x, y, (S.seed ^ salt ^ depthSalt) >>> 0) < density(x, y);
 }
 F.isMine = isMine;
 
@@ -216,6 +242,7 @@ function number(x, y) {
   return c;
 }
 F.number = number;
+F.clearNumCache = () => numCache.clear();
 
 function sectorOf(x, y) {
   const n = S.sectorSize;
@@ -224,8 +251,13 @@ function sectorOf(x, y) {
 F.sectorOf = sectorOf;
 
 const sectorInfo = new Map();
+function sectorKey(sx, sy) {
+  return S.kind === 'inf' ? S.depth + ':' + sx + ',' + sy : sx + ',' + sy;
+}
+F.sectorKey = sectorKey;
+
 function sectorStats(sx, sy) {
-  const k = sx + ',' + sy;
+  const k = sectorKey(sx, sy);
   let info = sectorInfo.get(k);
   if (info) return info;
   const n = S.sectorSize;
@@ -335,6 +367,7 @@ function reset(seed) {
   S.started = false; S.over = false; S.win = false; S.time = 0;
   S.safe.clear(); S.opened.clear(); S.flags.clear(); S.cleared.clear();
   numCache.clear(); sectorInfo.clear(); probeCache.clear();
+  if (F.clearInfCache) F.clearInfCache();
 }
 F.reset = reset;
 
@@ -344,7 +377,7 @@ function nextSector(sx, sy, around) {
   for (let dy = -r; dy <= r; dy++) {
     for (let dx = -r; dx <= r; dx++) {
       const nx = sx + dx, ny = sy + dy;
-      if (S.cleared.has(nx + ',' + ny)) continue;
+      if (S.cleared.has(sectorKey(nx, ny))) continue;
       const d = Math.hypot(dx, dy);
       if (d < bd) { bd = d; best = [nx, ny]; }
     }
@@ -360,7 +393,9 @@ F.debugSample = function (modeId, x0, y0, w, h, step) {
   for (let y = y0; y < y0 + h; y += step) {
     let cur = 0;
     for (let x = x0; x < x0 + w; x += step) {
-      const p = density(x, y, modeId);
+      const p = (F.isInf(modeId) && F.densityInf)
+        ? F.densityInf(x, y, S.depth, infTable()[modeId], S.seed)
+        : density(x, y, modeId);
       st.n++; st.sum += p; st.max = Math.max(st.max, p); st.min = Math.min(st.min, p);
       if (p > 0.3) { st.hi++; cur++; } else { if (cur) st.runs.push(cur); cur = 0; }
     }

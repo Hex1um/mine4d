@@ -131,7 +131,7 @@ function draw(canvas, view, now) {
   for (let syy = s0y; syy <= s1y; syy++) {
     for (let sxx = s0x; sxx <= s1x; sxx++) {
       const isTarget = sxx === view.target[0] && syy === view.target[1];
-      const cleared = F.S.cleared.has(sxx + ',' + syy);
+      const cleared = F.S.cleared.has(F.sectorKey(sxx, syy));
       if (!isTarget && !cleared && cell < 18) continue;
       const bx = sx(sxx * n), by = sy(syy * n);
       ctx.strokeStyle = isTarget ? 'rgba(34,211,238,0.75)' : cleared ? 'rgba(125,255,178,0.45)' : 'rgba(34,211,238,0.18)';

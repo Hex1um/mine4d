@@ -6,7 +6,8 @@
 const $ = (id) => document.getElementById(id);
 const SAVE_KEY = 'fm.save.v1';
 
-const save = { seed: 20261111, cleared: 0, cell: 26, heat: true, mode: 'julia' };
+const save = { seed: 20261111, cleared: 0, cell: 26, heat: true, mode: 'julia', depth: 0 };
+const CELL_MIN = 16;   // 无限模式：格子小于这个就上浮，大于 base 倍就下潜
 const view = { cx: 10.5, cy: 10.5, cell: 26, heat: true, target: [0, 0], hover: null, zoomFlash: 0 };
 const mouse = { x: 0, y: 0 };
 let booted = false, lastT = 0, bannerT = 0;
@@ -70,32 +71,74 @@ function writeSave() {
 function buildModeBar() {
   const bar = $('mode-bar');
   if (!bar) return;
-  bar.innerHTML = F.modeList.map((m) =>
+  const group = (list, tag) => `<span class="mgroup">${tag}</span>` + list.map((m) =>
     `<button class="mode ${m.id === F.S.mode ? 'on' : ''}" data-fm="${m.id}" title="${m.name} · ${m.formula}">
       <b>${m.name}</b><i>${m.en}</i></button>`
   ).join('');
+  bar.innerHTML = group(F.modeList, '光学·有限深度') + group(F.infList, '无限·可一直下潜');
   bar.querySelectorAll('[data-fm]').forEach((b) => b.addEventListener('click', () => setFractal(b.dataset.fm)));
 }
+
+// 无限模式：深度相机。下潜 = 层数 +1、坐标 ×base、格子 px ÷base（画面连续）
+// keepCell = true：格子像素不变（等于「原地放大/缩小 base^N 倍」，按钮与直接下潜用）
+// keepCell = false：把这次缩放「吸收」成更细的格子（滚轮连续放大时用，画面不跳）
+function setDepth(L, keepCell) {
+  const m = F.modeInfo();
+  if (!F.isInf()) return false;
+  const base = F.baseOf();
+  L = Math.max(1, Math.min(18, L));
+  const d = L - F.S.depth;
+  if (!d) return false;
+  const k = keepCell === undefined ? true : keepCell;
+  for (let i = 0; i < Math.abs(d); i++) {
+    if (d > 0) {
+      view.cx *= base; view.cy *= base;
+      if (!k) view.cell /= base;
+    } else {
+      view.cx /= base; view.cy /= base;
+      if (!k) view.cell *= base;
+    }
+  }
+  F.S.depth = L;
+  save.depth = L;
+  view.cell = Math.max(4, Math.min(200, view.cell));
+  if (F.clearInfCache) F.clearInfCache();
+  if (F.clearNumCache) F.clearNumCache();
+  syncTarget();
+  view.sweepT = 3;
+  log(`下潜到第 ${L} 层 · ${m.name} · 一格 = 1/${Math.pow(base, L)} 世界单位`, d > 0 ? 'good' : 'info');
+  writeSave();
+  return true;
+}
+
+function syncTarget() {
+  const n = F.S.sectorSize;
+  view.target = [Math.floor(view.cx / n), Math.floor(view.cy / n)];
+}
+F.syncTarget = syncTarget;
 
 function setFractal(id) {
   if (id === F.S.mode) return;
   F.setMode(id);
   save.mode = id;
+  save.depth = 0;
   buildModeBar();
   newRun(save.seed);
-  const m = F.MODES[id];
+  const m = F.modeInfo(id);
   log(`分形切换 · ${m.name}（${m.formula}）`, 'warn');
 }
 
 function newRun(seed) {
   F.reset(seed === undefined ? save.seed : seed);
   save.seed = F.S.seed;
+  F.S.depth = F.isInf() ? (save.depth || 6) : 0;
   view.target = [0, 0];
   view.cx = 10.5; view.cy = 10.5;
+  view.cell = F.isInf() ? CELL_MIN : (save.cell || 26);
   $('log').innerHTML = '';
   banner(null);
   const st = F.sectorStats(0, 0);
-  const mm = F.MODES[F.S.mode];
+  const mm = F.modeInfo();
   log(`新雷场 · ${mm.name} · 种子 ${F.S.seed} · 目标扇区 0,0（${st.mines} 雷 / ${st.total} 格）`, 'info');
   log(`雷沿 ${mm.name} 的骨架聚集 · 首击必定安全`, 'info');
   writeSave();
@@ -141,13 +184,21 @@ function bind() {
   const pos = (e) => { const r = cvs.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
 
   // 缩放：以光标位置为锚
+  function autoDepth() {
+    if (!F.isInf()) return;
+    const base = F.baseOf();
+    let guard = 0;
+    while (view.cell >= CELL_MIN * base && guard++ < 20) setDepth(F.S.depth + 1, false);
+    while (view.cell <= CELL_MIN / base && F.S.depth > 1 && guard++ < 40) setDepth(F.S.depth - 1, false);
+  }
+
   function zoomAt(factor, mx, my) {
     const rect = cvs.getBoundingClientRect();
     const px = mx === undefined ? rect.width / 2 : mx;
     const py = my === undefined ? rect.height / 2 : my;
     const wx = view.cx + (px - rect.width / 2) / view.cell;
     const wy = view.cy + (py - rect.height / 2) / view.cell;
-    view.cell = Math.max(9, Math.min(64, view.cell * factor));
+    view.cell = Math.max(4, Math.min(200, view.cell * factor));
     view.cx = wx - (px - rect.width / 2) / view.cell;
     view.cy = wy - (py - rect.height / 2) / view.cell;
     save.cell = view.cell;
@@ -197,6 +248,7 @@ function bind() {
     e.preventDefault();
     const p = pos(e);
     zoomAt(Math.exp(-e.deltaY * 0.0014), p.x, p.y);
+    autoDepth();
     sfx.zoom();
   }, { passive: false });
 
@@ -230,6 +282,11 @@ function bind() {
   });
   cvs.addEventListener('pointercancel', () => { if (tTimer) { clearTimeout(tTimer); tTimer = null; } touch = null; });
 
+  $('btn-down').addEventListener('click', () => {
+    if (!F.isInf()) { log('光学模式只有一层：浮点精度放大到约 30 层就成噪声', 'warn'); return; }
+    setDepth(F.S.depth + 1, true);
+  });
+  $('btn-up').addEventListener('click', () => setDepth(F.S.depth - 1));
   $('btn-new').addEventListener('click', () => { newRun((Math.random() * 1e9) | 0); });
   $('btn-next').addEventListener('click', () => {
     const [tx, ty] = view.target;
@@ -241,10 +298,11 @@ function bind() {
   $('btn-zoom-in').addEventListener('click', () => { zoomAt(1.35); });
   $('btn-zoom-out').addEventListener('click', () => { zoomAt(1 / 1.35); });
   $('btn-reset').addEventListener('click', () => {
+    syncTarget();
     const [tx, ty] = view.target;
     view.cx = tx * F.S.sectorSize + F.S.sectorSize / 2;
     view.cy = ty * F.S.sectorSize + F.S.sectorSize / 2;
-    view.cell = 26; save.cell = 26; writeSave();
+    view.cell = CELL_MIN; save.cell = CELL_MIN; writeSave();
   });
   $('btn-heat').addEventListener('click', () => {
     view.heat = !view.heat;
@@ -262,8 +320,10 @@ function bind() {
     if (k === 'n') { $('btn-next').click(); return; }
     if (k === 'h' || k === '?') { $('help').classList.toggle('hidden'); return; }
     if (k === 'escape') { $('help').classList.add('hidden'); return; }
-    if (k === '+' || k === '=') { zoomAt(1.25); return; }
-    if (k === '-' || k === '_') { zoomAt(1 / 1.25); return; }
+    if (k === '+' || k === '=') { zoomAt(1.28); autoDepth(); return; }
+    if (k === '-' || k === '_') { zoomAt(1 / 1.28); autoDepth(); return; }
+    if (k === ']') { $('btn-down').click(); return; }
+    if (k === '[') { $('btn-up').click(); return; }
     const pan = { arrowleft: [-3, 0], arrowright: [3, 0], arrowup: [0, -3], arrowdown: [0, 3] }[k];
     if (pan) { e.preventDefault(); view.cx += pan[0]; view.cy += pan[1]; }
   });
@@ -291,7 +351,11 @@ function hud() {
   const t = Math.floor(F.S.time);
   $('clock').textContent = `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
   $('zoom').textContent = `${view.cell.toFixed(0)}px · ×${(view.cell / 26).toFixed(2)}`;
-  $('fractal').textContent = F.MODES[F.S.mode].name;
+  $('fractal').textContent = F.modeInfo().name;
+  $('depth').textContent = F.isInf() ? String(F.S.depth) : '光学';
+  $('world').textContent = F.isInf()
+    ? `${Math.floor(view.cx)},${Math.floor(view.cy)}`
+    : '—';
   $('cleared').textContent = String(save.cleared || 0);
 }
 
@@ -324,7 +388,7 @@ function boot() {
   booted = true;
   requestAnimationFrame(tick);
   window.__fm = {
-    S: F.S, view, newRun, click, setFractal, zoomAt: (f) => { view.cell *= f; }, save,
+    S: F.S, view, newRun, click, setFractal, setDepth, syncTarget, zoomAt: (f) => { view.cell *= f; }, save,
     sectorStats: F.sectorStats, isMine: F.isMine, density: F.density, escape: F.escape,
     reveal: (x, y) => { const n = F.reveal(x, y); afterReveal(x, y, n); return n; },
     flag: F.toggleFlag
