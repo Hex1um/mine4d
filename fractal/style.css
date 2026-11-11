@@ -116,6 +116,36 @@ main { min-height: 0; padding: 12px clamp(12px, 2vw, 24px); }
 .corner.bl { left: 6px; bottom: 6px; border-right: 0; border-top: 0; }
 .corner.br { right: 6px; bottom: 6px; border-left: 0; border-top: 0; }
 
+.modes {
+  position: absolute; top: 10px; left: 12px; z-index: 3;
+  display: flex; gap: 3px; flex-wrap: wrap;
+  padding: 3px;
+  background: rgba(4, 11, 16, 0.72);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(4px);
+}
+.mode {
+  display: grid; gap: 0; text-align: left;
+  font-family: var(--mono);
+  background: rgba(10, 24, 32, 0.55);
+  border: 1px solid var(--line);
+  padding: 4px 8px; cursor: pointer;
+  transition: color 130ms, border-color 130ms, background 130ms;
+}
+.mode b { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; color: var(--ink-soft); }
+.mode i { font-style: normal; font-size: 7px; letter-spacing: 0.12em; color: var(--ink-dim); }
+.mode:hover { border-color: var(--line2); }
+.mode:hover b { color: var(--green); }
+.mode.on { border-color: var(--green); background: rgba(125, 255, 178, 0.14); }
+.mode.on b { color: #eafff7; }
+.mode.on i { color: var(--green); }
+
+.ftab { width: 100%; border-collapse: collapse; margin: 4px 0 8px; }
+.ftab th, .ftab td { text-align: left; vertical-align: top; padding: 4px 8px 4px 0; font-size: 12px; line-height: 1.7; }
+.ftab th { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em; color: var(--green); white-space: nowrap; font-weight: 700; }
+.ftab td { color: var(--ink-soft); }
+.ftab tr + tr th, .ftab tr + tr td { border-top: 1px solid rgba(34, 211, 238, 0.1); }
+
 .zoombar { position: absolute; right: 14px; bottom: 14px; display: grid; gap: 6px; z-index: 3; }
 .zbtn {
   width: 34px; height: 34px; font-family: var(--mono); font-size: 16px; line-height: 1;
