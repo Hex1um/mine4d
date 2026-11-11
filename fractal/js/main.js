@@ -6,7 +6,7 @@
 const $ = (id) => document.getElementById(id);
 const SAVE_KEY = 'fm.save.v1';
 
-const save = { seed: 20261111, cleared: 0, cell: 26, heat: true, mode: 'julia', depth: 0 };
+const save = { seed: 20261111, cleared: 0, cell: 26, heat: true, mode: 'julia', depth: 0, playing: null };
 const CELL_MIN = 16;   // 无限模式：格子小于这个就上浮，大于 base 倍就下潜
 const view = { cx: 10.5, cy: 10.5, cell: 26, heat: true, target: [0, 0], hover: null, zoomFlash: 0 };
 const mouse = { x: 0, y: 0 };
@@ -109,6 +109,17 @@ function setDepth(L, keepCell) {
   log(`下潜到第 ${L} 层 · ${m.name} · 一格 = 1/${Math.pow(base, L)} 世界单位`, d > 0 ? 'good' : 'info');
   writeSave();
   return true;
+}
+
+// 游戏屏：画布独占整屏，HUD 悬浮；返回键退出到概览布局
+function setPlaying(on) {
+  const want = on === undefined ? !document.body.classList.contains('playing') : !!on;
+  document.body.classList.toggle('playing', want);
+  if (!want) document.body.classList.remove('picker-open');
+  save.playing = want;
+  writeSave();
+  if (want) hud();
+  return want;
 }
 
 function syncTarget() {
@@ -282,6 +293,15 @@ function bind() {
   });
   cvs.addEventListener('pointercancel', () => { if (tTimer) { clearTimeout(tTimer); tTimer = null; } touch = null; });
 
+  $('btn-focus').addEventListener('click', () => setPlaying(true));
+  $('btn-back').addEventListener('click', () => setPlaying(false));
+  $('btn-picker').addEventListener('click', () => document.body.classList.toggle('picker-open'));
+  $('hud-down').addEventListener('click', () => $('btn-down').click());
+  $('hud-up').addEventListener('click', () => $('btn-up').click());
+  $('hud-next').addEventListener('click', () => $('btn-next').click());
+  $('hud-heat').addEventListener('click', () => $('btn-heat').click());
+  $('hud-help').addEventListener('click', () => $('btn-help').click());
+
   $('btn-down').addEventListener('click', () => {
     if (!F.isInf()) { log('光学模式只有一层：浮点精度放大到约 30 层就成噪声', 'warn'); return; }
     setDepth(F.S.depth + 1, true);
@@ -318,8 +338,13 @@ function bind() {
     const k = e.key.toLowerCase();
     if (k === 'r') { newRun((Math.random() * 1e9) | 0); return; }
     if (k === 'n') { $('btn-next').click(); return; }
+    if (k === 'f') { setPlaying(); return; }
     if (k === 'h' || k === '?') { $('help').classList.toggle('hidden'); return; }
-    if (k === 'escape') { $('help').classList.add('hidden'); return; }
+    if (k === 'escape') {
+      if (!$('help').classList.contains('hidden')) { $('help').classList.add('hidden'); return; }
+      if (document.body.classList.contains('playing')) setPlaying(false);
+      return;
+    }
     if (k === '+' || k === '=') { zoomAt(1.28); autoDepth(); return; }
     if (k === '-' || k === '_') { zoomAt(1 / 1.28); autoDepth(); return; }
     if (k === ']') { $('btn-down').click(); return; }
@@ -356,6 +381,14 @@ function hud() {
   $('world').textContent = F.isInf()
     ? `${Math.floor(view.cx)},${Math.floor(view.cy)}`
     : '—';
+  // 游戏屏 HUD
+  $('hud-fractal').textContent = F.modeInfo().name;
+  $('hud-depth').textContent = F.isInf() ? 'L' + F.S.depth : '光学';
+  $('hud-world').textContent = F.isInf() ? `${Math.floor(view.cx)},${Math.floor(view.cy)}` : '—';
+  $('hud-mines').textContent = $('mines').textContent;
+  $('hud-clock').textContent = $('clock').textContent;
+  $('hud-prog').textContent = $('prog').textContent;
+  $('hud-heat').classList.toggle('on', view.heat);
   $('cleared').textContent = String(save.cleared || 0);
 }
 
@@ -386,9 +419,12 @@ function boot() {
   bind();
   $('btn-heat').classList.toggle('on', view.heat);
   booted = true;
+  const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  const small = window.innerWidth < 820;
+  setPlaying(save.playing === null || save.playing === undefined ? (coarse || small) : !!save.playing);
   requestAnimationFrame(tick);
   window.__fm = {
-    S: F.S, view, newRun, click, setFractal, setDepth, syncTarget, zoomAt: (f) => { view.cell *= f; }, save,
+    S: F.S, view, newRun, click, setFractal, setDepth, syncTarget, setPlaying, zoomAt: (f) => { view.cell *= f; }, save,
     sectorStats: F.sectorStats, isMine: F.isMine, density: F.density, escape: F.escape,
     reveal: (x, y) => { const n = F.reveal(x, y); afterReveal(x, y, n); return n; },
     flag: F.toggleFlag
