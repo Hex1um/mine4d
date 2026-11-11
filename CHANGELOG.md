@@ -1,5 +1,11 @@
 # 更新日志
 
+## [1.1.1] - 2026-11-11
+
+- 发布到 GitHub：仓库 `Hex1um/mine4d`，GitHub Pages 线上地址 **https://hex1um.github.io/mine4d/**。
+- 补 `.nojekyll`，让 Pages 原样输出静态文件。
+- 新增 `tools/live-check.mjs`：用无头 Chromium 加载线上地址，确认开局、翻开、立体视图渲染与字体加载，并留一张线上截图。
+
 ## [1.1.0] - 2026-11-11
 
 新增**立体视图**与**四维视图**，四维雷场不再只能一张张切片看。
