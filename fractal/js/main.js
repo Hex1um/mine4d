@@ -6,7 +6,7 @@
 const $ = (id) => document.getElementById(id);
 const SAVE_KEY = 'fm.save.v1';
 
-const save = { seed: 20261111, cleared: 0, cell: 26, heat: true };
+const save = { seed: 20261111, cleared: 0, cell: 26, heat: true, mode: 'julia' };
 const view = { cx: 10.5, cy: 10.5, cell: 26, heat: true, target: [0, 0], hover: null, zoomFlash: 0 };
 const mouse = { x: 0, y: 0 };
 let booted = false, lastT = 0, bannerT = 0;
@@ -67,6 +67,26 @@ function writeSave() {
 }
 
 // ---------- 开新局 ----------
+function buildModeBar() {
+  const bar = $('mode-bar');
+  if (!bar) return;
+  bar.innerHTML = F.modeList.map((m) =>
+    `<button class="mode ${m.id === F.S.mode ? 'on' : ''}" data-fm="${m.id}" title="${m.name} · ${m.formula}">
+      <b>${m.name}</b><i>${m.en}</i></button>`
+  ).join('');
+  bar.querySelectorAll('[data-fm]').forEach((b) => b.addEventListener('click', () => setFractal(b.dataset.fm)));
+}
+
+function setFractal(id) {
+  if (id === F.S.mode) return;
+  F.setMode(id);
+  save.mode = id;
+  buildModeBar();
+  newRun(save.seed);
+  const m = F.MODES[id];
+  log(`分形切换 · ${m.name}（${m.formula}）`, 'warn');
+}
+
 function newRun(seed) {
   F.reset(seed === undefined ? save.seed : seed);
   save.seed = F.S.seed;
@@ -75,8 +95,9 @@ function newRun(seed) {
   $('log').innerHTML = '';
   banner(null);
   const st = F.sectorStats(0, 0);
-  log(`新雷场 · 种子 ${F.S.seed} · 目标扇区 0,0（${st.mines} 雷 / ${st.total} 格）`, 'info');
-  log('雷沿 Julia 集边界聚集 · 首击必定安全', 'info');
+  const mm = F.MODES[F.S.mode];
+  log(`新雷场 · ${mm.name} · 种子 ${F.S.seed} · 目标扇区 0,0（${st.mines} 雷 / ${st.total} 格）`, 'info');
+  log(`雷沿 ${mm.name} 的骨架聚集 · 首击必定安全`, 'info');
   writeSave();
 }
 
@@ -270,6 +291,7 @@ function hud() {
   const t = Math.floor(F.S.time);
   $('clock').textContent = `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
   $('zoom').textContent = `${view.cell.toFixed(0)}px · ×${(view.cell / 26).toFixed(2)}`;
+  $('fractal').textContent = F.MODES[F.S.mode].name;
   $('cleared').textContent = String(save.cleared || 0);
 }
 
@@ -290,7 +312,9 @@ function tick(ts) {
 // ---------- 启动 ----------
 function boot() {
   loadSave();
+  F.setMode(save.mode || 'julia');
   F.R.init($('board'));
+  buildModeBar();
   newRun(save.seed);
   view.cell = save.cell || 26;
   view.heat = save.heat !== false;
@@ -300,7 +324,7 @@ function boot() {
   booted = true;
   requestAnimationFrame(tick);
   window.__fm = {
-    S: F.S, view, newRun, click, zoomAt: (f) => { view.cell *= f; }, save,
+    S: F.S, view, newRun, click, setFractal, zoomAt: (f) => { view.cell *= f; }, save,
     sectorStats: F.sectorStats, isMine: F.isMine, density: F.density, escape: F.escape,
     reveal: (x, y) => { const n = F.reveal(x, y); afterReveal(x, y, n); return n; },
     flag: F.toggleFlag

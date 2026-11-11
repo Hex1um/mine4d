@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#04080c">
 <title>FRACTAL·MINE — 分形排雷</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2304080c'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%237dffb2'/%3E%3Ccircle cx='16' cy='16' r='10' fill='none' stroke='%2322d3ee' stroke-width='1.4'/%3E%3Ccircle cx='16' cy='16' r='14' fill='none' stroke='%2322d3ee' stroke-width='1' opacity='.5'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="../4d/fonts/fonts.css?v=1.2.0">
-<link rel="stylesheet" href="style.css?v=1.2.0">
+<link rel="stylesheet" href="../4d/fonts/fonts.css?v=1.3.0">
+<link rel="stylesheet" href="style.css?v=1.3.0">
 </head>
 <body>
 <div class="crt" aria-hidden="true"></div>
@@ -26,6 +26,7 @@
     <div class="stat"><label>剩余雷</label><b id="mines">000</b></div>
     <div class="stat"><label>扇区进度</label><b id="prog">0%</b></div>
     <div class="stat"><label>用时</label><b id="clock">00:00</b></div>
+    <div class="stat"><label>分形</label><b id="fractal">Julia 树</b></div>
     <div class="stat"><label>缩放</label><b id="zoom">26px · ×1.00</b></div>
     <div class="stat"><label>已清扇区</label><b id="cleared">0</b></div>
   </div>
@@ -42,6 +43,7 @@
 <main>
   <section class="board-wrap">
     <canvas id="board"></canvas>
+    <div id="mode-bar" class="modes"></div>
     <div id="banner" class="banner"></div>
     <div class="zoombar">
       <button id="btn-zoom-in" class="zbtn">+</button>
@@ -69,6 +71,16 @@
       <button class="close" data-close>×</button>
     </header>
     <div class="modal-body">
+      <h4>六种分形（左上角切换）</h4>
+      <table class="ftab">
+        <tr><th>Julia 树</th><td>z ← z² + i 的逃逸时间；取 c = i 是因为这棵枝杈没有内部，整张图处处是边界</td></tr>
+        <tr><th>Mandelbrot</th><td>z ← z² + c，c 就是格坐标；镜头停在「海马谷」的边界上，雷贴着边界聚集</td></tr>
+        <tr><th>Sierpinski 三角</th><td>三个 1/2 相似映射 → 三角网格里的镂空</td></tr>
+        <tr><th>Sierpinski 地毯</th><td>八个 1/3 相似映射 → 正方形挖洞挖到底</td></tr>
+        <tr><th>Koch 曲线</th><td>四段 1/3、交替 ±60° → 越缩越长的锯齿海岸线</td></tr>
+        <tr><th>Vicsek 十字</th><td>五个 1/3 方块围成十字 → 正交的格子套格子</td></tr>
+      </table>
+      <p>后四种用同一套引擎：对每格做 <b>IFS 逆迭代</b>——点在吸引子上就能一路映射回单位正方形，越晚「逃出」越贴近骨架。密度阈值由「缩放 × 目标丝宽」反推（n₀ = ln(w·scale)/ln(r)），所以换缩放不用重新调参。</p>
       <h4>和经典扫雷的关系</h4>
       <p>规则完全一样：数字 = 周围 8 格的雷数，空格自动连片翻开，首击必定安全（点击格与 8 邻一起排空），左键排雷、右键插旗、已开数字上左键快开。</p>
       <h4>不同的地方：雷的分布是分形的</h4>
@@ -82,8 +94,8 @@
   </div>
 </div>
 
-<script src="js/field.js?v=1.2.0"></script>
-<script src="js/render.js?v=1.2.0"></script>
-<script src="js/main.js?v=1.2.0"></script>
+<script src="js/field.js?v=1.3.0"></script>
+<script src="js/render.js?v=1.3.0"></script>
+<script src="js/main.js?v=1.3.0"></script>
 </body>
 </html>
