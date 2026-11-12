@@ -7,7 +7,20 @@ const $ = (id) => document.getElementById(id);
 const SAVE_KEY = 'fm.save.v1';
 
 const save = { seed: 20261111, cleared: 0, cell: 26, heat: true, mode: 'julia', depth: 0, playing: null };
-const CELL_MIN = 16;   // 无限模式：格子小于这个就上浮，大于 base 倍就下潜
+// 扇区是 9×9，格子大小按「一屏放下 9 格」来定；下潜/上浮后重新铺满
+let CELL_FIT = 16;
+const fitCell = () => {
+  const cvs = $('board');
+  const r = cvs.getBoundingClientRect();
+  const w = r.width || window.innerWidth;
+  const h = r.height || window.innerHeight;
+  CELL_FIT = Math.max(14, Math.min(78, Math.min(w, h) / F.S.sectorSize * 0.94));
+  return CELL_FIT;
+};
+const cellMin = () => CELL_FIT * 0.62;
+const cellMax = () => CELL_FIT * 1.6;
+// 布局还没稳定时 fitCell 会算小（例如刚启动那一刻），下一帧再校一次
+let needFit = true;
 const view = { cx: 10.5, cy: 10.5, cell: 26, heat: true, target: [0, 0], hover: null, zoomFlash: 0 };
 const mouse = { x: 0, y: 0 };
 let booted = false, lastT = 0, bannerT = 0;
@@ -101,10 +114,10 @@ function setDepth(L, keepCell) {
   }
   F.S.depth = L;
   save.depth = L;
-  view.cell = Math.max(4, Math.min(200, view.cell));
   if (F.clearInfCache) F.clearInfCache();
   if (F.clearNumCache) F.clearNumCache();
-  syncTarget();
+  syncTarget(true);
+  view.cell = fitCell();
   view.sweepT = 3;
   log(`下潜到第 ${L} 层 · ${m.name} · 一格 = 1/${Math.pow(base, L)} 世界单位`, d > 0 ? 'good' : 'info');
   writeSave();
@@ -118,13 +131,19 @@ function setPlaying(on) {
   if (!want) document.body.classList.remove('picker-open');
   save.playing = want;
   writeSave();
+  needFit = true;
   if (want) hud();
   return want;
 }
 
-function syncTarget() {
+function syncTarget(force) {
   const n = F.S.sectorSize;
-  view.target = [Math.floor(view.cx / n), Math.floor(view.cy / n)];
+  const sx = Math.floor(view.cx / n), sy = Math.floor(view.cy / n);
+  const [tx, ty] = view.target;
+  if (force || sx !== tx || sy !== ty) {
+    // 迟滞：只有中心真正越过扇区边界才换目标，避免平移时任务跳来跳去
+    view.target = [sx, sy];
+  }
 }
 F.syncTarget = syncTarget;
 
@@ -144,8 +163,9 @@ function newRun(seed) {
   save.seed = F.S.seed;
   F.S.depth = F.isInf() ? (save.depth || 6) : 0;
   view.target = [0, 0];
-  view.cx = 10.5; view.cy = 10.5;
-  view.cell = F.isInf() ? CELL_MIN : (save.cell || 26);
+  const half = F.S.sectorSize / 2;
+  view.cx = half; view.cy = half;
+  view.cell = fitCell();
   $('log').innerHTML = '';
   banner(null);
   const st = F.sectorStats(0, 0);
@@ -197,10 +217,9 @@ function bind() {
   // 缩放：以光标位置为锚
   function autoDepth() {
     if (!F.isInf()) return;
-    const base = F.baseOf();
     let guard = 0;
-    while (view.cell >= CELL_MIN * base && guard++ < 20) setDepth(F.S.depth + 1, false);
-    while (view.cell <= CELL_MIN / base && F.S.depth > 1 && guard++ < 40) setDepth(F.S.depth - 1, false);
+    while (view.cell >= cellMax() && guard++ < 20) { setDepth(F.S.depth + 1, false); view.cell = fitCell(); }
+    while (view.cell <= cellMin() && F.S.depth > 1 && guard++ < 40) { setDepth(F.S.depth - 1, false); view.cell = fitCell(); }
   }
 
   function zoomAt(factor, mx, my) {
@@ -304,7 +323,9 @@ function bind() {
 
   $('btn-down').addEventListener('click', () => {
     if (!F.isInf()) { log('光学模式只有一层：浮点精度放大到约 30 层就成噪声', 'warn'); return; }
-    setDepth(F.S.depth + 1, true);
+    view.cell = fitCell() * 0.7;                 // 先贴近“放大一档”再下潜，保证画面连续
+    setDepth(F.S.depth + 1, false);
+    view.cell = fitCell();
   });
   $('btn-up').addEventListener('click', () => setDepth(F.S.depth - 1));
   $('btn-new').addEventListener('click', () => { newRun((Math.random() * 1e9) | 0); });
@@ -313,16 +334,18 @@ function bind() {
     view.target = F.nextSector(tx, ty, 10);
     view.cx = view.target[0] * F.S.sectorSize + F.S.sectorSize / 2;
     view.cy = view.target[1] * F.S.sectorSize + F.S.sectorSize / 2;
+    view.cell = fitCell();
     log(`切换到扇区 ${view.target[0]},${view.target[1]}`, 'info');
   });
   $('btn-zoom-in').addEventListener('click', () => { zoomAt(1.35); });
   $('btn-zoom-out').addEventListener('click', () => { zoomAt(1 / 1.35); });
   $('btn-reset').addEventListener('click', () => {
-    syncTarget();
+    syncTarget(true);
     const [tx, ty] = view.target;
     view.cx = tx * F.S.sectorSize + F.S.sectorSize / 2;
     view.cy = ty * F.S.sectorSize + F.S.sectorSize / 2;
-    view.cell = CELL_MIN; save.cell = CELL_MIN; writeSave();
+    view.cell = fitCell();
+    writeSave();
   });
   $('btn-heat').addEventListener('click', () => {
     view.heat = !view.heat;
@@ -353,7 +376,7 @@ function bind() {
     if (pan) { e.preventDefault(); view.cx += pan[0]; view.cy += pan[1]; }
   });
 
-  window.addEventListener('resize', () => F.R.resize());
+  window.addEventListener('resize', () => { F.R.resize(); needFit = true; });
 }
 
 // ---------- HUD ----------
@@ -400,6 +423,7 @@ function tick(ts) {
   lastT = now;
   if (!booted) return;
   if (F.S.started && !F.S.over) F.S.time += dt;
+  if (needFit) { needFit = false; view.cell = fitCell(); }
   if (view.zoomFlash > 0) view.zoomFlash = Math.max(0, view.zoomFlash - dt);
   F.R.draw($('board'), view, now);
   hud();
@@ -424,7 +448,8 @@ function boot() {
   setPlaying(save.playing === null || save.playing === undefined ? (coarse || small) : !!save.playing);
   requestAnimationFrame(tick);
   window.__fm = {
-    S: F.S, view, newRun, click, setFractal, setDepth, syncTarget, setPlaying, zoomAt: (f) => { view.cell *= f; }, save,
+    S: F.S, view, newRun, click, setFractal, setDepth, syncTarget, setPlaying, fitCell,
+    get cellFit() { return CELL_FIT; }, zoomAt: (f) => { view.cell *= f; }, save,
     sectorStats: F.sectorStats, isMine: F.isMine, density: F.density, escape: F.escape,
     reveal: (x, y) => { const n = F.reveal(x, y); afterReveal(x, y, n); return n; },
     flag: F.toggleFlag

@@ -187,15 +187,17 @@ body.playing .hud > * { pointer-events: auto; }
 
 .hud-side {
   position: absolute; right: max(10px, env(safe-area-inset-right));
-  top: 50%; transform: translateY(-50%);
-  display: grid; gap: 10px;
+  top: max(56px, calc(env(safe-area-inset-top) + 50px));
+  bottom: auto;
+  display: grid; gap: 8px;
 }
 .hud-round {
-  width: 46px; height: 46px; border-radius: 50%;
-  font-family: var(--mono); font-size: 19px; line-height: 1;
-  color: var(--ink); background: rgba(6, 16, 22, 0.82);
+  width: 42px; height: 42px; border-radius: 50%;
+  font-family: var(--mono); font-size: 17px; line-height: 1;
+  color: var(--ink); background: rgba(6, 16, 22, 0.62);
   border: 1px solid var(--line2); cursor: pointer;
   backdrop-filter: blur(6px);
+  opacity: 0.86;
 }
 .hud-round:active { transform: scale(0.94); color: var(--green); }
 
@@ -341,7 +343,8 @@ main { min-height: 0; padding: 12px clamp(12px, 2vw, 24px); }
   .hud-chips { font-size: 10px; padding: 5px 9px; }
   .hud-nums span { padding: 3px 7px; }
   .hud-nums i { display: none; }
-  .hud-round { width: 44px; height: 44px; }
+  .hud-round { width: 40px; height: 40px; }
+  body.playing .console { display: none; }   /* 小屏上日志会压住格子，进游戏屏就收起 */
   .stats { gap: 10px; }
   .stat b { font-size: 12px; }
   .brand small { display: none; }
