@@ -21,7 +21,7 @@ const S = {
   opened: new Set(),
   flags: new Set(),
   cleared: new Map(),
-  sectorSize: 21
+  sectorSize: 9
 };
 F.S = S;
 

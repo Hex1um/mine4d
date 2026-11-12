@@ -59,12 +59,17 @@ function draw(canvas, view, now) {
   const showText = cell >= 13;
   const pad = Math.max(1, cell * 0.06);
 
+  // 目标扇区范围（用来把区外格子压暗）
+  const nSec = S.sectorSize;
+  const tx0 = view.target[0] * nSec, ty0 = view.target[1] * nSec;
   // 格子
   for (let y = y0; y <= y1; y++) {
     for (let x = x0; x <= x1; x++) {
       const k = F.key(x, y);
       const px = sx(x), py = sy(y);
       const cw = cell - pad, ch = cell - pad;
+      const inSec = x >= tx0 && x < tx0 + nSec && y >= ty0 && y < ty0 + nSec;
+      ctx.globalAlpha = inSec ? 1 : 0.55;
       if (S.opened.has(k)) {
         const isMine = F.isMine(x, y);
         if (isMine) {
@@ -100,7 +105,9 @@ function draw(canvas, view, now) {
         if (showHeat) {
           const d = F.density(x, y);
           if (d > 0.07) {
-            const a = Math.min(0.46, Math.pow((d - 0.07) * 1.45, 0.85));
+            // 格子越大（9×9 扇区），同一片密度越刺眼，按尺寸压一档
+            const dim = cell >= 34 ? 0.58 : cell >= 26 ? 0.78 : 1;
+            const a = Math.min(0.46, Math.pow((d - 0.07) * 1.45, 0.85)) * dim;
             ctx.fillStyle = `rgba(34,211,238,${a.toFixed(3)})`;
             ctx.fillRect(px + pad / 2, py + pad / 2, cw, ch);
           }
@@ -128,6 +135,7 @@ function draw(canvas, view, now) {
   const n = S.sectorSize;
   const s0x = Math.floor(x0 / n), s1x = Math.floor(x1 / n);
   const s0y = Math.floor(y0 / n), s1y = Math.floor(y1 / n);
+  ctx.globalAlpha = 1;
   for (let syy = s0y; syy <= s1y; syy++) {
     for (let sxx = s0x; sxx <= s1x; sxx++) {
       const isTarget = sxx === view.target[0] && syy === view.target[1];

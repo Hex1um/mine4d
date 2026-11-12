@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#04080c">
 <title>FRACTAL·MINE — 分形排雷</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2304080c'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%237dffb2'/%3E%3Ccircle cx='16' cy='16' r='10' fill='none' stroke='%2322d3ee' stroke-width='1.4'/%3E%3Ccircle cx='16' cy='16' r='14' fill='none' stroke='%2322d3ee' stroke-width='1' opacity='.5'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="../4d/fonts/fonts.css?v=1.5.0">
-<link rel="stylesheet" href="style.css?v=1.5.0">
+<link rel="stylesheet" href="../4d/fonts/fonts.css?v=1.6.0">
+<link rel="stylesheet" href="style.css?v=1.6.0">
 </head>
 <body>
 <div class="crt" aria-hidden="true"></div>
@@ -132,16 +132,16 @@
       <p>每个坐标先算一次 <b>Julia 集</b>的逃逸步数 ε（<code>z ← z² + c</code>，c = −0.7269 + 0.1889i），再用 ε 落在 <b>边界带</b>的接近程度决定该格是雷的概率。于是雷会沿着分形的丝状边界聚集，空出大片「湖」——你翻开后看到的数字排布，本身就是分形的形状。</p>
       <p>每个格子的雷与否由坐标和种子唯一确定（哈希 + 密度阈值），所以<b>平移、缩放、关掉再打开，雷场都不会变</b>。</p>
       <h4>无限棋盘的目标</h4>
-      <p>雷场无限大，所以目标不是「清空全图」，而是清空被虚线框住的那个 <b>21 × 21 扇区</b>：把扇区内所有非雷格翻开即算清空，累计计数并自动指向下一个未清扇区（<b>N</b> 键直接跳过去）。踩雷则本局结束，按 <b>R</b> 换种子重开。</p>
+      <p>雷场无限大，所以目标不是「清空全图」，而是清空被虚线框住的那个 <b>9 × 9 扇区</b>：把扇区内所有非雷格翻开即算清空，累计计数并自动指向下一个未清扇区（<b>N</b> 键直接跳过去）。踩雷则本局结束，按 <b>R</b> 换种子重开。</p>
       <h4>为什么可以一直缩下去</h4>
       <p>Julia 集在边界附近是自相似的：缩得越深，丝状结构的细节越多（受迭代上限 26 步限制）。「密度场」开关会把理论概率用青色底噪画出来，它只告诉你哪儿更可能有雷，不告诉你具体哪一格——那是脚手架，不是答案。</p>
     </div>
   </div>
 </div>
 
-<script src="js/inf.js?v=1.5.0"></script>
-<script src="js/field.js?v=1.5.0"></script>
-<script src="js/render.js?v=1.5.0"></script>
-<script src="js/main.js?v=1.5.0"></script>
+<script src="js/inf.js?v=1.6.0"></script>
+<script src="js/field.js?v=1.6.0"></script>
+<script src="js/render.js?v=1.6.0"></script>
+<script src="js/main.js?v=1.6.0"></script>
 </body>
 </html>
